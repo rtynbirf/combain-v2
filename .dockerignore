@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+backend/node_modules
+backend/data
+backend/uploads
+backend/.env
+**/.env
+*.db
+*.db-wal
+*.db-shm
+dev.db
+.git
+.github
+*.md
+!backend/package*.json

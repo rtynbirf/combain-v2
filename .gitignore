@@ -1,0 +1,22 @@
+# Секреты и окружение
+.env
+**/.env
+!.env.example
+
+# Данные и загрузки
+backend/data/
+backend/uploads/*
+!backend/uploads/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+dev.db
+
+# Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+
+# Прочее
+.DS_Store
+__pycache__/

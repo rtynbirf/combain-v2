@@ -1,0 +1,12 @@
+# Litestream: непрерывная WAL-репликация SQLite в S3-совместимое хранилище.
+# Восстановление: docker compose run --rm -v combain-data:/data backup restore -o /data/combain.db s3://$LITESTREAM_S3_BUCKET/combain
+dbs:
+  - path: /data/combain.db
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_S3_BUCKET}
+        path: combain
+        region: ${LITESTREAM_S3_REGION:-us-east-1}
+        endpoint: ${LITESTREAM_S3_ENDPOINT:-}
+        retention: 720h          # 30 дней истории
+        snapshot-interval: 24h

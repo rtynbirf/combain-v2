@@ -1,0 +1,13 @@
+# Caddy: автоматический HTTPS (Let's Encrypt) + WebSocket-проксирование из коробки.
+# COMBAIN_DOMAIN=chat.example.com в .env
+{$COMBAIN_DOMAIN} {
+	encode zstd gzip
+
+	# Health-зонд без логов доступа
+	@health path /api/health /api/ready
+	log_skip @health
+
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {remote_host}
+	}
+}
