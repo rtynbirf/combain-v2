@@ -23,7 +23,7 @@
 | **Эксплуатация** | HEALTHCHECK в образе, non-root, read-only FS, `cap_drop ALL`, tini, keep-alive таймауты за прокси. |
 | **Бэкапы** | Litestream непрерывно реплицирует WAL в S3 — point-in-time restore без остановки сервиса. |
 | **TLS** | Caddy с автоматическим Let's Encrypt, WebSocket из коробки. |
-| **CI/CD** | Тесты на Node 20/22/24, CodeQL (`security-extended`), авто-публикация образа в GHCR, Dependabot (npm+docker+actions). Все actions закреплены за **commit-SHA** (защита от атаки через теги), `GITHUB_TOKEN` — read-only по умолчанию. |
+| **CI/CD** | Тесты на Node 22/24, CodeQL (`security-extended`), авто-публикация образа в GHCR (Node 26), Dependabot (npm+docker+actions). Все actions закреплены за **commit-SHA** (защита от атаки через теги), `GITHUB_TOKEN` — read-only по умолчанию. |
 | **Supply chain** | SLSA build provenance каждого образа (публичный transparency log), OpenSSF Scorecard, SHA-pinned Actions, Dependabot (npm+docker+actions). |
 | **Качество** | 63 интеграционных теста (REST + WS + security + изолированная БД + проверка индексов) — в CI на каждый PR. |
 

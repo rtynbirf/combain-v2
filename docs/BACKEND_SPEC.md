@@ -33,8 +33,8 @@ Presence / Typing / WebSocket connections / ICE — **ephemeral (in-memory)**, �
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Runtime | Node.js ≥ 20 LTS | ES modules or CJS — **CJS acceptable** to match simple deploy |
-| HTTP | Express 4.x | Static `public/` optional in same process for self-host |
+| Runtime | Node.js ≥ 22 LTS | ES modules or CJS — **CJS acceptable** to match simple deploy |
+| HTTP | Express 5.x | Static `public/` optional in same process for self-host |
 | WS | `ws` 8.x | Attached to same HTTP server |
 | ORM | Prisma 5.x | Single source of schema + migrations |
 | DB driver | **SQLite via Prisma** (`provider = "sqlite"`) | Dev + single-node self-host default |

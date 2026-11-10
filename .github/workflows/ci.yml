@@ -20,7 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22, 24]
+        # better-sqlite3 13 требует Node >= 22 (на 20 — segfault native-модуля)
+        node: [22, 24]
     defaults:
       run:
         working-directory: backend
