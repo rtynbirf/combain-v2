@@ -3,6 +3,8 @@
 ![CI](https://github.com/rtynbirf/combain-v2/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/rtynbirf/combain-v2/actions/workflows/codeql.yml/badge.svg)
 ![Docker Image](https://github.com/rtynbirf/combain-v2/actions/workflows/docker-publish.yml/badge.svg)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rtynbirf/combain-v2/badge)](https://scorecard.dev/viewer/?uri=github.com/rtynbirf/combain-v2)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Собственный мессенджер: **Express + better-sqlite3 (WAL)**, WebSocket-реалтайм,
 замороженный SPA-фронтенд. Один контейнер, один файл БД, непрерывные бэкапы —
@@ -22,6 +24,7 @@
 | **Бэкапы** | Litestream непрерывно реплицирует WAL в S3 — point-in-time restore без остановки сервиса. |
 | **TLS** | Caddy с автоматическим Let's Encrypt, WebSocket из коробки. |
 | **CI/CD** | Тесты на Node 20/22/24, CodeQL (`security-extended`), авто-публикация образа в GHCR, Dependabot (npm+docker+actions). Все actions закреплены за **commit-SHA** (защита от атаки через теги), `GITHUB_TOKEN` — read-only по умолчанию. |
+| **Supply chain** | SLSA build provenance каждого образа (публичный transparency log), OpenSSF Scorecard, SHA-pinned Actions, Dependabot (npm+docker+actions). |
 | **Качество** | 63 интеграционных теста (REST + WS + security + изолированная БД + проверка индексов) — в CI на каждый PR. |
 
 ## Структура
