@@ -90,7 +90,7 @@ app.use('/uploads', express.static(config.uploadDir));
 
 if (fs.existsSync(config.publicDir)) {
   app.use(express.static(config.publicDir));
-  app.get('*', (req, res, next) => {
+  app.get('/*splat', (req, res, next) => {
     if (req.path.startsWith('/auth') || req.path.startsWith('/rooms') ||
         req.path.startsWith('/messages') || req.path.startsWith('/users') ||
         req.path.startsWith('/groups') || req.path.startsWith('/uploads') ||
