@@ -20,7 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22, 24]
+        # better-sqlite3 13 требует Node >= 22 (на 20 — segfault native-модуля)
+        node: [22, 24]
     defaults:
       run:
         working-directory: backend
@@ -32,7 +33,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Integration suite (REST + WS, isolated DB)
         run: npm test
         env:
@@ -53,7 +54,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci --omit=dev
+      - run: npm ci --omit=dev --ignore-scripts
       # Информационный: не блокирует PR, но видно в чек-ране
       - run: npm audit --omit=dev --audit-level=high
         continue-on-error: true

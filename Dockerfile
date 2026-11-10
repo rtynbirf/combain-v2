@@ -4,7 +4,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+# --ignore-scripts обязателен: у bs3 13.0.3 есть NAPI-пребилды в тарболле (включая
+# linuxmusl-x64), но из-за binding.gyp npm дефолтно дёргает node-gyp rebuild и
+# требует python/make/g++. Пребилд-путь — это и есть путь прода (fast, slim).
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:22-alpine
 ENV NODE_ENV=production \
