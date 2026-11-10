@@ -12,6 +12,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     DATA_DIR=/data \
     UPLOAD_DIR=/data/uploads \
+    LOG_DIR=/data/logs \
     PUBLIC_DIR=/app/public
 RUN apk add --no-cache tini
 WORKDIR /app/backend

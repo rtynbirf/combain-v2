@@ -8,6 +8,7 @@ const { rateLimit } = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 const config = require('./config');
 const { sendError } = require('./utils/errors');
+const logger = require('./utils/logger');
 const { verifyToken } = require('./middleware/auth');
 const store = require('./services/store');
 const hub = require('./ws/hub');
@@ -45,6 +46,24 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/api/health' || req.path === '/api/ready',
 });
 app.use(limiter);
+
+// Access-логи (структурированные): метод, путь, статус, длительность.
+// Не шумим: health-пробы и статика файлов не логируются.
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const p = req.path;
+    if (p === '/api/health' || p === '/api/ready' || p.startsWith('/uploads')) return;
+    logger.http('http_request', {
+      method: req.method,
+      path: p,
+      status: res.statusCode,
+      ms: +(Number(process.hrtime.bigint() - start) / 1e6).toFixed(1),
+      userId: req.user ? req.user.id : undefined,
+    });
+  });
+  next();
+});
 
 // Health/ready для Docker, Compose и мониторинга
 const startedAtIso = new Date().toISOString();
@@ -85,10 +104,23 @@ if (fs.existsSync(config.publicDir)) {
 app.use((err, req, res, next) => sendError(res, err));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Keep-alive чуть больше, чем у прокси (Caddy/Nginx ~60с) — чтобы соединения
+// не рвались race-ом на границе таймаутов
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
+// WS: maxPayload режет гигантские фреймы на уровне библиотеки (anti-DoS, close 1009)
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: config.wsMaxPayload });
 
 wss.on('connection', (ws, req) => {
   try {
+    // CSWSH-защита: если ALLOWED_ORIGINS задан — чужие origin не пускаем
+    const origin = req.headers.origin;
+    if (config.wsAllowedOrigins.length && origin && !config.wsAllowedOrigins.includes(origin)) {
+      logger.warn('ws_origin_rejected', { origin });
+      ws.close(4403, 'Origin not allowed');
+      return;
+    }
     const url = new URL(req.url, 'http://localhost');
     const token = url.searchParams.get('token');
     if (!token) { ws.close(4401, 'Unauthorized'); return; }
@@ -101,8 +133,20 @@ wss.on('connection', (ws, req) => {
     } catch {}
     hub.broadcastAll({ type: 'presence_update', payload: { userId, status: 'online' } }, userId);
     ws.send(JSON.stringify({ type: 'auth_ok', payload: { userId } }));
+    logger.info('ws_connected', { userId, origin: origin || '-' });
+
+    // Анти-флуд: не более wsMsgLimit сообщений за скользящее окно 10с
+    let msgCount = 0;
+    let windowStart = Date.now();
 
     ws.on('message', (raw) => {
+      const now = Date.now();
+      if (now - windowStart >= 10000) { windowStart = now; msgCount = 0; }
+      if (++msgCount > config.wsMsgLimit) {
+        logger.warn('ws_rate_limited', { userId });
+        ws.close(4408, 'Rate limited');
+        return;
+      }
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
       handle(ws, userId, msg);
@@ -111,6 +155,7 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
       const last = hub.removeConnection(userId, ws);
       hub.unsubscribeAll(userId);
+      logger.info('ws_closed', { userId, last });
       if (last) {
         try {
           store.db.prepare("UPDATE User SET status='offline', lastSeenAt=? WHERE id=?")
@@ -120,10 +165,28 @@ wss.on('connection', (ws, req) => {
       }
     });
   } catch (e) {
-    console.error('[WS]', e);
+    logger.error('ws_connection_error', { err: e.message });
     try { ws.close(); } catch {}
   }
 });
+
+// Корректное завершение: Docker/k8s шлёт SIGTERM — закрываем WS, HTTP и БД.
+function shutdown(sig) {
+  logger.warn('shutdown', { sig });
+  for (const client of wss.clients) {
+    try { client.close(1001, 'Server shutting down'); } catch {}
+  }
+  server.closeIdleConnections();
+  server.close(() => {
+    try { store.db.close(); } catch {}
+    logger.info('shutdown_done');
+    process.exit(0);
+  });
+  // Страховка: не висим дольше 5 секунд
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 function seed() {
   const bcrypt = require('bcryptjs');
@@ -156,11 +219,11 @@ function seed() {
       `INSERT INTO Message (id,roomId,authorId,type,text,createdAt) VALUES (?,?,?,'text',?,?)`
     ).run(store.cuid(), roomId, authorId, text, ts);
   }
-  console.log('[seed] test/test123, alice/alice123');
+  logger.info('seed_done', { users: 'test/test123, alice/alice123' });
 }
 
 seed();
 
 server.listen(config.port, config.host, () => {
-  console.log('COMBAIN backend http://' + config.host + ':' + config.port);
+  logger.info('server_started', { host: config.host, port: config.port, node: process.version });
 });

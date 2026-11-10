@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { rateLimit } = require('express-rate-limit');
 const { signToken, authRequired } = require('../middleware/auth');
 const { AppError } = require('../utils/errors');
 const config = require('../config');
@@ -7,7 +8,18 @@ const store = require('../services/store');
 
 const router = express.Router();
 
-router.post('/register', async (req, res, next) => {
+// Анти-брутфорс: считаем только НЕудачные попытки (успешный логин не наказывается),
+// строгий лимит на IP. Глобальный rate-limit дальше по стеку — отдельно не считаем.
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: config.authLimitMax,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many attempts, slow down' } },
+});
+
+router.post('/register', authLimiter, async (req, res, next) => {
   try {
     const username = String(req.body?.username || '').trim();
     const password = String(req.body?.password || '');
@@ -29,7 +41,7 @@ router.post('/register', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', authLimiter, async (req, res, next) => {
   try {
     const username = String(req.body?.username || '').trim();
     const password = String(req.body?.password || '');

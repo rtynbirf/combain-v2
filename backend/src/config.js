@@ -19,4 +19,14 @@ module.exports = {
     try { return JSON.parse(process.env.ICE_SERVERS_JSON || '[{"urls":"stun:stun.l.google.com:19302"}]'); }
     catch { return [{ urls: 'stun:stun.l.google.com:19302' }]; }
   })(),
+  // WS-хардненинг: список разрешённых Origin (CSWSH-защита).
+  // Пусто = разрешены все (self-host за прокси; origin-проверку включает сам владелец).
+  wsAllowedOrigins: (process.env.ALLOWED_ORIGINS || '')
+    .split(',').map((s) => s.trim()).filter(Boolean),
+  // Максимальный байтовый размер WS-фрейма (файлы идут через HTTP/multer, не WS)
+  wsMaxPayload: parseInt(process.env.WS_MAX_PAYLOAD || '131072', 10),
+  // Лимит сообщений на соединение (анти-флуд): окно 10 секунд
+  wsMsgLimit: parseInt(process.env.WS_MSG_LIMIT || '60', 10),
+  // Лимит неудачных попыток логина/регистрации с одного IP за минуту
+  authLimitMax: parseInt(process.env.AUTH_LIMIT_MAX || '30', 10),
 };

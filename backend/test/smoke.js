@@ -91,6 +91,7 @@ async function main() {
       UPLOAD_DIR,
       JWT_SECRET,
       RATE_LIMIT_MAX: '100000',
+      LOG_SILENT: 'true',
       NODE_ENV: 'test',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -383,6 +384,27 @@ async function main() {
     ok(!!hdrs.headers.get('x-frame-options') || !!hdrs.headers.get('content-security-policy'), 'security: frame protection header');
     const rl = await req('POST', '/auth/login', { body: { username: U1, password: P1 } });
     ok(!!rl.headers.get('ratelimit') || !!rl.headers.get('ratelimit-policy'), 'security: rate limit headers (draft-7)');
+  }
+
+  // ── Rate limit / WS hardening ─────────────────────────
+  {
+    // Анти-брутфорс: неудачные логины считаются, лимит 30/мин — 32-я попытка даст 429
+    let saw429 = false;
+    for (let i = 0; i < 32 && !saw429; i++) {
+      const r = await req('POST', '/auth/login', { body: { username: 'ghost_' + i, password: 'x' } });
+      if (r.status === 429) saw429 = true;
+    }
+    ok(saw429, 'security: auth brute-force limited 429');
+
+    // maxPayload: фрейм больше 128 КБ рвёт соединение кодом 1009 (message too big)
+    const closeCode = await new Promise((resolve) => {
+      wsConnect(T1).then((ws) => {
+        ws.on('close', (c) => resolve(c));
+        ws.send(Buffer.alloc(200 * 1024, 7));
+      }).catch(() => resolve(-1));
+      setTimeout(() => resolve(-2), 5000);
+    });
+    eq(closeCode, 1009, 'ws: oversize payload closed 1009');
   }
 
   // ── Итог ─────────────────────────────────────────────────
