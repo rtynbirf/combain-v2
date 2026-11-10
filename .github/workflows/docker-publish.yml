@@ -43,7 +43,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: мембрана реестра — старые версии образа прочь (квота хранилища Actions; урок nous 2026-11-10: 9 версий GHCR забили пул и покраснили релиз соседнего репо)
+      - name: "мембрана реестра — старые версии образа прочь (квота хранилища Actions; урок nous 2026-11-10: 9 версий GHCR забили пул и покраснили релиз соседнего репо)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KEEP_TAG: ${{ steps.meta.outputs.version }}
