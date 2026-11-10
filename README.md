@@ -1,5 +1,10 @@
 # COMBAIN v2 — self-hosted messenger
 
+<div align="center">
+  <img src="banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
+</div>
+
+
 ![CI](https://github.com/rtynbirf/combain-v2/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/rtynbirf/combain-v2/actions/workflows/codeql.yml/badge.svg)
 ![Docker Image](https://github.com/rtynbirf/combain-v2/actions/workflows/docker-publish.yml/badge.svg)
