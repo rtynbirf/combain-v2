@@ -12,8 +12,9 @@ jobs:
     name: Analyze (JavaScript)
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      actions: read # нужен codeql-action для get-a-workflow-run при загрузке SARIF
       contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
