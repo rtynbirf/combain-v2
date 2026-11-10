@@ -46,27 +46,33 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: SLSA build provenance -> публичный transparency log
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ghcr.io/rtynbirf/combain-v2
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
       - name: "мембрана реестра — старые версии образа прочь (квота хранилища; урок nous 2026-11-10: 9 версий GHCR забили пул)"
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          KEEP_TAG: \${{ steps.meta.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_TAG: ${{ steps.meta.outputs.version }}
         run: |
           set -uo pipefail
-          pkg="\${GITHUB_REPOSITORY#*/}"
-          api="https://api.github.com/user/packages/container/\${pkg}/versions?per_page=100"
-          listing=$(curl -sf -H "Authorization: Bearer \${GH_TOKEN}" "\${api}") || { echo "мембрана: листинг недоступен — контур пройдёт в следующий такт"; exit 0; }
+          pkg="${GITHUB_REPOSITORY#*/}"
+          api="https://api.github.com/user/packages/container/${pkg}/versions?per_page=100"
+          listing=$(curl -sf -H "Authorization: Bearer ${GH_TOKEN}" "${api}") || { echo "мембрана: листинг недоступен — контур пройдёт в следующий такт"; exit 0; }
           fresh_cut=$(date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ)
           removed=0; survived=0
           while read -r id created; do
-            [ -z "\${id:-}" ] && continue
+            [ -z "${id:-}" ] && continue
             # свежайшее не трогаем: теги GHCR доезжают с задержкой (race -> ложное безтеговое)
-            if [[ "\${created}" > "\${fresh_cut}" ]]; then survived=$((survived+1)); continue; fi
-            if curl -sf -X DELETE -H "Authorization: Bearer \${GH_TOKEN}" \
-                 "https://api.github.com/user/packages/container/\${pkg}/versions/\${id}"; then
-              echo "мембрана: удалена версия \${id}"; removed=$((removed+1))
+            if [[ "${created}" > "${fresh_cut}" ]]; then survived=$((survived+1)); continue; fi
+            if curl -sf -X DELETE -H "Authorization: Bearer ${GH_TOKEN}" \
+                 "https://api.github.com/user/packages/container/${pkg}/versions/${id}"; then
+              echo "мембрана: удалена версия ${id}"; removed=$((removed+1))
             else
-              echo "мембрана: версия \${id} пережила заход (занята/тег едет) — не краснит"; survived=$((survived+1))
+              echo "мембрана: версия ${id} пережила заход (занята/тег едет) — не краснит"; survived=$((survived+1))
             fi
-          done < <(jq -r --arg keep "\${KEEP_TAG}" \
-            '.[] | select((.metadata.container.tags // []) | index($keep) | not) | "\(.id) \(.created_at)"' <<< "\${listing}")
-          echo "мембрана: удалено \${removed}, пережило \${survived} — контур закрыт"
+          done < <(jq -r --arg keep "${KEEP_TAG}" \
+            '.[] | select((.metadata.container.tags // []) | index($keep) | not) | "\(.id) \(.created_at)"' <<< "${listing}")
+          echo "мембрана: удалено ${removed}, пережило ${survived} — контур закрыт"
