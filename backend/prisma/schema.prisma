@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  displayName  String?
+  bio          String?
+  avatarUrl    String?
+  balance      Float     @default(0)
+  status       String    @default("offline")
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships  RoomMember[]
+  messages     Message[]          @relation("MessageAuthor")
+  reactions    MessageReaction[]
+  reads        MessageRead[]
+  pins         PinnedMessage[]    @relation("PinnedBy")
+  blocksOut    UserBlock[]        @relation("Blocker")
+  blocksIn     UserBlock[]        @relation("Blocked")
+  callsFrom    Call[]             @relation("CallCaller")
+  callParts    CallParticipant[]
+  bans         GroupBan[]         @relation("BannedUser")
+  bansIssued   GroupBan[]         @relation("BannedBy")
+  uploads      UploadedFile[]
+  roomsCreated Room[]             @relation("RoomCreator")
+
+  @@index([status])
+}
+
+model Room {
+  id          String    @id @default(cuid())
+  type        String
+  name        String?
+  description String?
+  avatarUrl   String?
+  createdById String
+  createdBy   User      @relation("RoomCreator", fields: [createdById], references: [id])
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members  RoomMember[]
+  messages Message[]
+  pins     PinnedMessage[]
+  calls    Call[]
+  bans     GroupBan[]
+
+  @@index([type])
+  @@index([updatedAt])
+  @@index([deletedAt])
+}
+
+model RoomMember {
+  id         String    @id @default(cuid())
+  roomId     String
+  userId     String
+  role       String    @default("member")
+  joinedAt   DateTime  @default(now())
+  leftAt     DateTime?
+  mutedUntil DateTime?
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+  @@index([roomId, leftAt])
+}
+
+model Message {
+  id              String    @id @default(cuid())
+  roomId          String
+  authorId        String
+  type            String    @default("text")
+  text            String?
+  clientMessageId String?
+  replyToId       String?
+  fileUrl         String?
+  fileName        String?
+  fileSize        Int?
+  fileMimeType    String?
+  locationLat     Float?
+  locationLng     Float?
+  locationAddress String?
+  contactData     String?
+  fileId          String?
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  room      Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author    User              @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  replyTo   Message?          @relation("Replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[]         @relation("Replies")
+  reactions MessageReaction[]
+  reads     MessageRead[]
+  pins      PinnedMessage[]
+  file      UploadedFile?     @relation(fields: [fileId], references: [id])
+
+  @@index([roomId, createdAt])
+  @@index([authorId])
+  @@index([replyToId])
+  @@index([deletedAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+  @@index([messageId])
+}
+
+model PinnedMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  messageId String
+  pinnedBy  String
+  pinnedAt  DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation("PinnedBy", fields: [pinnedBy], references: [id])
+
+  @@unique([roomId, messageId])
+  @@index([roomId])
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model Call {
+  id         String    @id @default(cuid())
+  roomId     String
+  callerId   String
+  status     String    @default("ringing")
+  offerSdp   String?
+  answerSdp  String?
+  startedAt  DateTime  @default(now())
+  answeredAt DateTime?
+  endedAt    DateTime?
+  endedById  String?
+  room       Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  caller     User      @relation("CallCaller", fields: [callerId], references: [id])
+  participants CallParticipant[]
+
+  @@index([roomId, status])
+}
+
+model CallParticipant {
+  id       String    @id @default(cuid())
+  callId   String
+  userId   String
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  call     Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+}
+
+model UploadedFile {
+  id         String    @id @default(cuid())
+  uploaderId String
+  url        String
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  storageKey String?
+  createdAt  DateTime  @default(now())
+  uploader   User      @relation(fields: [uploaderId], references: [id])
+  messages   Message[]
+
+  @@index([uploaderId])
+}
+
+model GroupBan {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  bannedBy  String
+  reason    String?
+  createdAt DateTime @default(now())
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation("BannedUser", fields: [userId], references: [id], onDelete: Cascade)
+  banner    User     @relation("BannedBy", fields: [bannedBy], references: [id])
+
+  @@unique([roomId, userId])
+}
+
+model RoomInvite {
+  id        String   @id @default(cuid())
+  roomId    String
+  inviterId String
+  inviteeId String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  @@unique([roomId, inviteeId])
+  @@index([inviteeId, status])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  meta       String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+}
