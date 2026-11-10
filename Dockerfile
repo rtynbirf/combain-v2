@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 # ── COMBAIN v2 — production image (multi-stage, non-root, healthcheck) ──
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-FROM node:22-alpine
+FROM node:26-alpine
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
