@@ -10,6 +10,9 @@ on:
 jobs:
   analyze:
     name: Analyze (JavaScript)
+    # Code scanning бесплатен для публичных репо (или с GHAS для приватных).
+    # Репо станет публичным — анализ включится сам, без правок воркфлоу.
+    if: github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     permissions:
       actions: read # нужен codeql-action для get-a-workflow-run при загрузке SARIF
