@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "Если используете этот проект, процитируйте его так."
+title: "combain-v2"
+abstract: "Self-hosted messenger — Express + SQLite (WAL), Class A/B realtime delivery, Litestream backups, Caddy TLS, full CI/CD"
+authors:
+  - name: "Полимат-Универсум (rtynbirf)"
+repository-code: "https://github.com/rtynbirf/combain-v2"
+license: "MIT"
