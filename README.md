@@ -4,6 +4,15 @@
   <img src="banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
 </div>
 
+<!--ФОРЖ:МУЗА:НАЧАЛО-->
+<div align="center">
+  <img src="repo-muse.svg" width="100%" alt="Муза combain-v2: картина кузни ПОЛИМАТ, раунд 8" />
+  <br/>
+  <img src="forge-divider.svg" width="62%" alt="разделитель кузни ПОЛИМАТ" />
+</div>
+<!--ФОРЖ:МУЗА:КОНЕЦ-->
+
+
 
 ![CI](https://github.com/rtynbirf/combain-v2/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/rtynbirf/combain-v2/actions/workflows/codeql.yml/badge.svg)
@@ -123,3 +132,10 @@ npm test             # 63 теста, изолированная БД, случ�
 
 Спецификация: [`docs/BACKEND_SPEC.md`](docs/BACKEND_SPEC.md) ·
 Политика безопасности: [`SECURITY.md`](SECURITY.md)
+
+<!--ФОРЖ:ПОДВАЛ-->
+---
+
+<div align="center">
+  <sub>◆ картина и штандарт — ручная ковка <a href="https://github.com/rtynbirf">КУЗНИ ПОЛИМАТ</a> · ЧЕЛОВЕК=АККАУНТ=PID1 ◆</sub>
+</div>
