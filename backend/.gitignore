@@ -4,3 +4,4 @@ data/*.db-journal
 uploads/*
 !uploads/.gitkeep
 .env
+data/logs/
