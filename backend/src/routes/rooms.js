@@ -3,6 +3,7 @@ const { authRequired } = require('../middleware/auth');
 const { AppError } = require('../utils/errors');
 const store = require('../services/store');
 const { serializeRoom, publicUser } = require('../services/serialize');
+const hub = require('../ws/hub');
 
 const router = express.Router();
 router.use(authRequired);
@@ -76,6 +77,18 @@ router.post('/:id/participants', (req, res, next) => {
     else store.db.prepare('INSERT INTO RoomMember (id,roomId,userId,role,joinedAt) VALUES (?,?,?,?,?)')
       .run(store.cuid(), req.params.id, userId, 'member', store.now());
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+router.post('/:id/invites', (req, res, next) => {
+  try {
+    const invite = store.createInvite(req.params.id, req.user.id, req.body?.userId);
+    // Мгновенный пуш приглашённому (онлайн-уведомление; оффлайн заберёт GET /users/invites)
+    hub.sendToUser(invite.inviteeId, {
+      type: 'room_invited',
+      payload: { inviteId: invite.id, roomId: invite.roomId, inviterId: invite.inviterId, createdAt: invite.createdAt },
+    });
+    res.status(201).json(invite);
   } catch (e) { next(e); }
 });
 

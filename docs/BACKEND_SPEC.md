@@ -749,17 +749,21 @@ model AuditLog {
 {
   "sub": "<userId>",
   "username": "<username>",
+  "jti": "<unique token id, Phase 2>",
   "iat": 0,
   "exp": 0
 }
 ```
 
 No refresh token in v2. Expired/invalid → `401` + client `clearAuth()`.
+Phase 2: `jti` enables revocation — logout добавляет токен в `RevokedToken` (denylist);
+проверка на каждом authRequired и на WS-коннекте. Токены без `jti` (легаси) неотзываемы — истекают сами.
 
 ### 3.3 Password
 
 - bcrypt cost ≥ 10
-- Min length 6 (align with practical UX; document in validation)
+- **Phase 2:** длина 8–128; минимум одна буква и одна цифра
+- **Phase 2:** username `^[a-zA-Z0-9_]{3,24}$`
 - Never log or return hash
 
 ### 3.4 Endpoints behavior
@@ -768,7 +772,7 @@ No refresh token in v2. Expired/invalid → `401` + client `clearAuth()`.
 |----------|--------|
 | `POST /auth/register` | username unique → 409 `USER_EXISTS`; create user; return `{ id, username, token }` **201** |
 | `POST /auth/login` | verify password; 401 on fail; return `{ id, username, token }` **200** |
-| `POST /auth/logout` | **200** `{ ok: true }` always if authenticated; JWT mode = no server revoke (optional denylist later) |
+| `POST /auth/logout` | **200** `{ ok: true }`; **Phase 2:** реально отзывает токен (jti → `RevokedToken`); повторный logout отозванного — 401 |
 | `GET /auth/me` | current user DTO + `balance` |
 | `GET /auth/config` | **no auth**; `{ modules: { sms: false, payments: false }, ice_servers: [...] }` from env/AppSetting |
 
@@ -777,6 +781,8 @@ No refresh token in v2. Expired/invalid → `401` + client `clearAuth()`.
 ```text
 authRequired:
   missing/invalid/expired token → 401
+  Phase 2: jti в RevokedToken → 401 TOKEN_REVOKED
+  Phase 2: user удалён (User.deletedAt) → 401 TOKEN_INVALID
   sets req.user = { id, username }
 
 authOptional:
@@ -789,10 +795,11 @@ On connection:
 
 1. Parse `token` query param  
 2. Verify JWT  
-3. Fail → close code **4401** (or 1008) + no `auth_ok`  
-4. Success → register connection in hub; send `{ type: "auth_ok", payload: { userId } }`  
-5. Set user presence online (memory + optional DB status)  
-6. On close → remove connection; if last socket for user → offline + `lastSeenAt=now` + broadcast `presence_update`
+3. **Phase 2:** jti отозван или User.deletedAt → close **4401**  
+4. Fail (невалидный/просроченный токен) → close code **4401** (or 1008) + no `auth_ok`  
+5. Success → register connection in hub; send `{ type: "auth_ok", payload: { userId } }`  
+6. Set user presence online (memory + optional DB status)  
+7. On close → remove connection; if last socket for user → offline + `lastSeenAt=now` + broadcast `presence_update`
 
 ---
 
@@ -828,6 +835,7 @@ On connection:
 | POST | `/rooms/:id/leave` | yes | — | 200 `{ ok: true }` | set `leftAt`; unsubscribe WS |
 | POST | `/rooms/:id/rejoin` | yes | — | 200 Room or `{ ok }` | clear `leftAt` if not banned |
 | POST | `/rooms/:id/participants` | yes | `{ userId }` | 200 | admin/owner; not banned |
+| POST | `/rooms/:id/invites` | yes | `{ userId }` | **201** RoomInvite; повтор pending — идемпотентно; direct → **405** | member; invitee alive; не в блоках |
 | GET | `/rooms/:id/unread` | yes | — | 200 `{ count }` | messages not read by me, not mine |
 | GET | `/rooms/:id/last-message` | yes | — | 200 Message or `null` | member only |
 
@@ -843,13 +851,13 @@ On connection:
 |--------|------|------|-------|---------|-------|
 | PATCH | `/messages/:id/edit` | yes | `{ text }` | 200 Message | author only; set editedAt |
 | DELETE | `/messages/:id` | yes | — | 200 | soft delete; author or group admin |
-| POST | `/messages/forward` | yes | `{ messageId, targetRoomId, clientMessageId }` | 200 Message | member of both rooms |
+| POST | `/messages/forward` | yes | `{ messageId, targetRoomId, clientMessageId }` | 200 Message | member of both rooms; **Phase 2:** `forwardFromMessageId` = первоисточник |
 | POST | `/messages/:id/react` | yes | `{ emoji }` | 200 reaction payload | toggle; same shape as WS |
 | GET | `/messages/:id/reactions` | yes | — | 200 | map or list |
 | POST | `/messages/:id/pin` | yes | `?roomId=` | 200 | Phase 2; admin/owner |
 | DELETE | `/messages/:id/pin` | yes | `?roomId=` | 200 `{ ok }` | Phase 2 |
 | GET | `/messages/pinned/:roomId` | yes | — | 200 Message[] | Phase 2 |
-| POST | `/messages/read` | yes | `{ messageIds[], roomId }` | 200 `{ readCount }` | createMany skipDuplicates |
+| POST | `/messages/read` | yes | `{ messageIds[], roomId }` | 200 `{ readCount }` | **Phase 2:** массив обязателен, максимум **500** id → иначе 400 |
 | GET | `/messages/search` | yes | `?q&roomId&limit` | 200 Message[] | Phase 2; membership filter |
 | POST | `/messages/upload` | yes | multipart `file` | 200 `{ url, fileName, fileSize, mimeType }` | max 50MB |
 
@@ -866,7 +874,11 @@ On connection:
 | POST | `/users/block` | yes | `{ userId }` | `{ ok }` |
 | DELETE | `/users/block/:id` | yes | — | `{ ok }` |
 | GET | `/users/blocks` | yes | — | User[] |
-| POST | `/users/presence` | yes | `{ userIds[] }` | `{ [id]: { status, lastSeenAt } }` |
+| POST | `/users/presence` | yes | `{ userIds[] }` | `{ [id]: { status, lastSeenAt } }`; удалённые не видны |
+| DELETE | `/users/me` | yes | — | **Phase 2:** `{ ok }` — мягкое удаление (GDPR): профиль обезличен, токены мертвы, username резервируется |
+| GET | `/users/invites` | yes | — | **Phase 2:** pending RoomInvite[] с inviterUsername/roomName |
+| POST | `/users/invites/:id/accept` | yes | — | **Phase 2:** Room; 409 если уже обработано; 403 banned |
+| POST | `/users/invites/:id/decline` | yes | — | **Phase 2:** `{ ok }`; 409 если уже обработано |
 
 ### 4.6 Groups (Phase 2)
 
@@ -938,7 +950,7 @@ All frames (both directions):
 | `delete_message` | `{ messageId }` | soft delete | broadcast `message_deleted` `{ id, deletedAt }` |
 | `forward_message` | `{ messageId, targetRoomId, clientMessageId }` | copy to target room | broadcast `chat_message` in target (+ requestId) |
 | `message_reaction` | `{ messageId, emoji }` | toggle reaction | broadcast `message_reaction` `{ messageId, userId, emoji, added, reactions }` |
-| `messages_read` | `{ messageIds[], roomId }` | MessageRead createMany | `messages_read_ack` `{ readCount }` + broadcast `messages_read` `{ userId, messageIds }`; optional `message_read_by` to authors |
+| `messages_read` | `{ messageIds[], roomId }` | MessageRead createMany | `messages_read_ack` `{ readCount }` + broadcast `messages_read` `{ userId, messageIds }`; optional `message_read_by` to authors; **Phase 2:** массив обязателен, максимум **500** id → `error` `VALIDATION_ERROR` |
 | `typing_start` | `{ roomId }` | memory TTL (e.g. 5s) | broadcast `typing_start` `{ userId, roomId }` exclude self |
 | `typing_stop` | `{ roomId }` | clear typing | broadcast `typing_stop` |
 | `call_offer` | `{ roomId, sdp }` | **Phase 3** | `call_created` + broadcast `call_offer` |
@@ -965,6 +977,7 @@ Phase 1–2 server may respond to call_* with `error` `NOT_IMPLEMENTED` or ignor
 | `presence_update` | `{ userId, status }` | online/offline/away |
 | `message_pinned` | `{ messageId, pinnedBy, pinnedAt }` | Phase 2 |
 | `message_unpinned` | `{ messageId }` | Phase 2 |
+| `room_invited` | `{ inviteId, roomId, inviterId, createdAt }` | **Phase 2:** онлайн-пуш приглашённому (POST /rooms/:id/invites) |
 | `call_created` | `{ callId }` | Phase 3 |
 | `call_offer` | `{ callId, sdp, fromUserId }` | Phase 3 |
 | `call_answer` | `{ callId, sdp }` | Phase 3 |

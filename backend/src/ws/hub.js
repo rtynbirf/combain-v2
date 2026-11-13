@@ -30,6 +30,15 @@ function isOnline(userId) {
   return !!(set && set.size > 0);
 }
 
+// Phase 2: оборвать все соединения пользователя (GDPR — удалённый аккаунт уходит из сети сразу)
+function closeUser(userId) {
+  const set = connections.get(userId);
+  if (!set) return;
+  for (const ws of set) {
+    try { ws.close(4401, 'Account deleted'); } catch {}
+  }
+}
+
 function sendToUser(userId, frame) {
   const set = connections.get(userId);
   if (!set) return;
@@ -109,6 +118,7 @@ module.exports = {
   addConnection,
   removeConnection,
   isOnline,
+  closeUser,
   sendToUser,
   subscribe,
   unsubscribeAll,

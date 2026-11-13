@@ -56,14 +56,9 @@ async function handle(ws, userId, msg) {
         break;
       }
       case 'forward_message': {
-        const src = store.db.prepare('SELECT * FROM Message WHERE id = ?').get(payload.messageId);
-        if (!src) break;
-        store.requireMember(src.roomId, userId);
-        store.requireMember(payload.targetRoomId, userId);
-        const msgDto = store.createMessage(userId, {
-          roomId: payload.targetRoomId, type: src.type, text: src.text,
+        const msgDto = store.forwardMessage(userId, {
+          messageId: payload.messageId, targetRoomId: payload.targetRoomId,
           clientMessageId: payload.clientMessageId,
-          fileUrl: src.fileUrl, fileName: src.fileName, fileSize: src.fileSize, fileMimeType: src.fileMimeType,
         });
         hub.broadcastToRoom(payload.targetRoomId, {
           type: 'chat_message', requestId: requestId || payload.clientMessageId, payload: msgDto,
@@ -83,6 +78,11 @@ async function handle(ws, userId, msg) {
       }
       case 'messages_read': {
         const { messageIds, roomId } = payload || {};
+        // Phase 2: тот же потолок, что и в REST — иначе флуд одним фреймом
+        if (!Array.isArray(messageIds) || messageIds.length === 0 || messageIds.length > 500) {
+          send(ws, { type: 'error', requestId, code: 'VALIDATION_ERROR', message: 'messageIds required, max 500' });
+          break;
+        }
         store.requireMember(roomId, userId);
         let readCount = 0;
         for (const mid of messageIds || []) {

@@ -9,7 +9,7 @@ const { WebSocketServer } = require('ws');
 const config = require('./config');
 const { sendError } = require('./utils/errors');
 const logger = require('./utils/logger');
-const { verifyToken } = require('./middleware/auth');
+const { verifyToken, isRevoked, cleanupRevoked } = require('./middleware/auth');
 const store = require('./services/store');
 const hub = require('./ws/hub');
 const { handle } = require('./ws/handlers');
@@ -112,6 +112,9 @@ server.headersTimeout = 66000;
 // WS: maxPayload режет гигантские фреймы на уровне библиотеки (anti-DoS, close 1009)
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: config.wsMaxPayload });
 
+// Phase 2: сборка мусора отозванных токенов с истёкшим сроком — раз в 10 минут
+setInterval(() => { try { cleanupRevoked(); } catch {} }, 10 * 60 * 1000).unref();
+
 wss.on('connection', (ws, req) => {
   try {
     // CSWSH-защита: если ALLOWED_ORIGINS задан — чужие origin не пускаем
@@ -126,6 +129,10 @@ wss.on('connection', (ws, req) => {
     if (!token) { ws.close(4401, 'Unauthorized'); return; }
     let payload;
     try { payload = verifyToken(token); } catch { ws.close(4401, 'Unauthorized'); return; }
+    // Phase 2: отозванный токен (logout/GDPR) или удалённый аккаунт в WS не пускаем
+    if (payload.jti && isRevoked(payload.jti)) { ws.close(4401, 'Token revoked'); return; }
+    const alive = store.db.prepare('SELECT deletedAt FROM User WHERE id = ?').get(payload.sub);
+    if (!alive || alive.deletedAt) { ws.close(4401, 'Unauthorized'); return; }
     const userId = payload.sub;
     hub.addConnection(userId, ws);
     try {

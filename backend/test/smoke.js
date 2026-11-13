@@ -108,9 +108,10 @@ async function main() {
 
   const ts = Date.now().toString(36);
   const [U1, U2, U3] = [`t1_${ts}`, `t2_${ts}`, `t3_${ts}`];
-  const P1 = 'pass1';
-  const P2 = 'pass2';
-  const P3 = 'pass3';
+  // Phase 2: валидация требует 8+ символов, буква + цифра
+  const P1 = 'passw0rd1';
+  const P2 = 'passw0rd2';
+  const P3 = 'passw0rd3';
 
   // ── Health ───────────────────────────────────────────────
   {
@@ -342,6 +343,138 @@ async function main() {
     eq(foreign.status, 403, 'access: foreign room messages 403');
     const noRoom = await req('POST', '/rooms/does-not-exist/leave', { token: T1 });
     eq(noRoom.status, 403, 'access: unknown room leave 403');
+  }
+
+  // ── Phase 2: усиленная валидация username/password ─────
+  {
+    const shortName = await req('POST', '/auth/register', { body: { username: 'a', password: 'passw0rd9' } });
+    eq(shortName.status, 400, 'phase2: username 1 char → 400');
+    const badChars = await req('POST', '/auth/register', { body: { username: 'bad name!', password: 'passw0rd9' } });
+    eq(badChars.status, 400, 'phase2: username with space/! → 400');
+    const longName = await req('POST', '/auth/register', { body: { username: 'x'.repeat(25), password: 'passw0rd9' } });
+    eq(longName.status, 400, 'phase2: username 25 chars → 400');
+    const shortPass = await req('POST', '/auth/register', { body: { username: `v1_${ts}`, password: 's1' } });
+    eq(shortPass.status, 400, 'phase2: password 2 chars → 400');
+    const noDigit = await req('POST', '/auth/register', { body: { username: `v2_${ts}`, password: 'nodigitshere' } });
+    eq(noDigit.status, 400, 'phase2: password without digit → 400');
+    const noLetter = await req('POST', '/auth/register', { body: { username: `v3_${ts}`, password: '12345678' } });
+    eq(noLetter.status, 400, 'phase2: password without letter → 400');
+  }
+
+  // ── Phase 2: jti + отзыв (logout реально рвёт сессию) ────
+  {
+    const lg = await req('POST', '/auth/login', { body: { username: U1, password: P1 } });
+    const tOld = lg.json.token;
+    eq((await req('GET', '/auth/me', { token: tOld })).status, 200, 'phase2: fresh login token works');
+    eq((await req('POST', '/auth/logout', { token: tOld })).status, 200, 'phase2: logout 200');
+    eq((await req('GET', '/auth/me', { token: tOld })).status, 401, 'phase2: revoked token → 401');
+    eq((await req('GET', '/auth/me', { token: T1 })).status, 200, 'phase2: other sessions unaffected');
+    // повторный logout отозванного токена — тоже 401 (authRequired не пускает)
+    eq((await req('POST', '/auth/logout', { token: tOld })).status, 401, 'phase2: logout of revoked → 401');
+  }
+
+  // ── Phase 2: forwardFromMessageId (провенанс форвардов) ──
+  {
+    const wsA = await wsConnect(T1);
+    const w = waitFor(wsA, 'chat_message', { filter: (m) => m.requestId === 'req-fwd' });
+    wsSend(wsA, 'chat_message', { roomId: groupId, text: 'forward me', clientMessageId: 'cm-fwd' }, 'req-fwd');
+    const srcId = (await w).payload.id;
+    wsA.close();
+    await sleep(100);
+    const wsB = await wsConnect(T2);
+    const wf = waitFor(wsB, 'chat_message', { filter: (m) => m.requestId === 'req-fwd2' });
+    wsSend(wsB, 'forward_message', { messageId: srcId, targetRoomId: directId, clientMessageId: 'cm-fwd2' }, 'req-fwd2');
+    const f1 = (await wf).payload;
+    eq(f1.forwardFromMessageId, srcId, 'phase2: WS forward carries forwardFromMessageId');
+    const wf2 = waitFor(wsB, 'chat_message', { filter: (m) => m.requestId === 'req-fwd3' });
+    wsSend(wsB, 'forward_message', { messageId: f1.id, targetRoomId: groupId, clientMessageId: 'cm-fwd3' }, 'req-fwd3');
+    const f2 = (await wf2).payload;
+    eq(f2.forwardFromMessageId, srcId, 'phase2: forward of forward points to ORIGINAL');
+    wsB.close();
+    await sleep(100);
+    const rf = await req('POST', '/messages/forward', { token: T1, body: { messageId: srcId, targetRoomId: directId, clientMessageId: 'cm-fwd-rest' } });
+    eq(rf.status, 200, 'phase2: REST forward 200');
+    eq(rf.json.forwardFromMessageId, srcId, 'phase2: REST forward provenance');
+  }
+
+  // ── Phase 2: лимит 500 на messageIds (REST + WS) ─────
+  {
+    const ids = Array.from({ length: 501 }, (_, i) => 'm' + i);
+    const r = await req('POST', '/messages/read', { token: T1, body: { roomId: groupId, messageIds: ids } });
+    eq(r.status, 400, 'phase2: REST 501 messageIds → 400');
+    const empty = await req('POST', '/messages/read', { token: T1, body: { roomId: groupId, messageIds: [] } });
+    eq(empty.status, 400, 'phase2: REST empty messageIds → 400');
+    const wsA = await wsConnect(T1);
+    const err = waitFor(wsA, 'error');
+    wsSend(wsA, 'messages_read', { roomId: groupId, messageIds: ids });
+    const e = await err;
+    ok(e.code === 'VALIDATION_ERROR', 'phase2: WS 501 messageIds → error frame');
+    wsA.close();
+    await sleep(100);
+  }
+
+  // ── Phase 2: RoomInvite (создание, accept, decline, границы) ──
+  {
+    const g2 = await req('POST', '/rooms', { token: T1, body: { type: 'group', name: 'Invite Group', participantIds: [] } });
+    eq(g2.status, 201, 'phase2: invite target group created');
+    const g2id = g2.json.id;
+    const inv = await req('POST', `/rooms/${g2id}/invites`, { token: T1, body: { userId: ID2 } });
+    eq(inv.status, 201, 'phase2: invite created 201');
+    const invId = inv.json.id;
+    const dup = await req('POST', `/rooms/${g2id}/invites`, { token: T1, body: { userId: ID2 } });
+    eq(dup.status, 201, 'phase2: duplicate invite idempotent');
+    eq(dup.json.id, invId, 'phase2: same invite id for pending');
+    const mine = await req('GET', '/users/invites', { token: T2 });
+    ok(mine.json.some((i) => i.id === invId && i.roomName === 'Invite Group'), 'phase2: invite visible with room name');
+    const acc = await req('POST', `/users/invites/${invId}/accept`, { token: T2 });
+    eq(acc.status, 200, 'phase2: invite accepted');
+    ok((await req('GET', '/rooms', { token: T2 })).json.some((r) => r.id === g2id), 'phase2: accept adds membership');
+    const again = await req('POST', `/users/invites/${invId}/accept`, { token: T2 });
+    eq(again.status, 409, 'phase2: accept twice → 409');
+    const self = await req('POST', `/rooms/${g2id}/invites`, { token: T1, body: { userId: ID1 } });
+    eq(self.status, 400, 'phase2: self-invite → 400');
+    const dinv = await req('POST', `/rooms/${directId}/invites`, { token: T1, body: { userId: ID3 } });
+    eq(dinv.status, 405, 'phase2: invite into direct → 405');
+    // decline-ветка
+    const g3 = await req('POST', '/rooms', { token: T1, body: { type: 'group', name: 'Decline Group', participantIds: [] } });
+    const inv3 = await req('POST', `/rooms/${g3.json.id}/invites`, { token: T1, body: { userId: ID3 } });
+    eq((await req('POST', `/users/invites/${inv3.json.id}/decline`, { token: T3 })).status, 200, 'phase2: invite declined');
+    const mine3 = await req('GET', '/users/invites', { token: T3 });
+    ok(!mine3.json.some((i) => i.id === inv3.json.id), 'phase2: declined invite gone from pending');
+    // чужое приглашение — 404 без утечки
+    const g4 = await req('POST', '/rooms', { token: T1, body: { type: 'group', name: 'Foreign Group', participantIds: [] } });
+    const inv4 = await req('POST', `/rooms/${g4.json.id}/invites`, { token: T1, body: { userId: ID2 } });
+    eq((await req('POST', `/users/invites/${inv4.json.id}/accept`, { token: T3 })).status, 404, 'phase2: foreign invite accept → 404');
+  }
+
+  // ── Phase 2: мягкое удаление аккаунта (GDPR) ───────
+  {
+    const u4 = `gdpr_${ts}`;
+    const r4 = await req('POST', '/auth/register', { body: { username: u4, password: 'passw0rd4' } });
+    eq(r4.status, 201, 'phase2: gdpr user registered');
+    const T4 = r4.json.token;
+    eq((await req('DELETE', '/users/me', { token: T4 })).status, 200, 'phase2: DELETE /users/me 200');
+    eq((await req('GET', '/auth/me', { token: T4 })).status, 401, 'phase2: deleted user token dead');
+    eq((await req('POST', '/auth/login', { body: { username: u4, password: 'passw0rd4' } })).status, 401, 'phase2: deleted user login 401');
+    const sr = await req('GET', '/users/search?q=gdpr_', { token: T1 });
+    ok(!sr.json.some((u) => u.username === u4), 'phase2: search hides deleted user');
+    const pr = await req('POST', '/users/presence', { token: T1, body: { userIds: [r4.json.id] } });
+    eq(pr.json[r4.json.id], undefined, 'phase2: presence hides deleted user');
+    eq((await req('POST', '/auth/register', { body: { username: u4, password: 'passw0rd4' } })).status, 409, 'phase2: username stays reserved');
+  }
+
+  // ── Phase 2: WS с отозванным токеном не пускают ─────
+  {
+    const lg = await req('POST', '/auth/login', { body: { username: U2, password: P2 } });
+    const t2b = lg.json.token;
+    await req('POST', '/auth/logout', { token: t2b });
+    const code = await new Promise((resolve) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws?token=${encodeURIComponent(t2b)}`);
+      ws.on('close', (c) => resolve(c));
+      ws.on('error', () => {});
+      setTimeout(() => resolve(-3), 5000);
+    });
+    eq(code, 4401, 'phase2: WS with revoked token closed 4401');
   }
 
   // ── WS ошибки ────────────────────────────────────────────

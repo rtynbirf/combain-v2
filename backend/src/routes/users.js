@@ -8,6 +8,16 @@ const hub = require('../ws/hub');
 const router = express.Router();
 router.use(authRequired);
 
+// Phase 2: мягкое удаление аккаунта (GDPR-минимум). Токены мертвы сразу:
+// authRequired больше не пропустит, WS-соединения рвутся на сервере
+router.delete('/me', (req, res, next) => {
+  try {
+    store.softDeleteUser(req.user.id);
+    hub.closeUser(req.user.id);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 router.get('/profile', (req, res) => {
   res.json(publicUser(store.getUserById(req.user.id)));
 });
@@ -28,7 +38,7 @@ router.get('/search', (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
   if (!q) return res.json([]);
-  const users = store.db.prepare('SELECT * FROM User WHERE lower(username) LIKE ? LIMIT ?')
+  const users = store.db.prepare('SELECT * FROM User WHERE lower(username) LIKE ? AND deletedAt IS NULL LIMIT ?')
     .all('%' + q + '%', limit)
     .filter((u) => u.id !== req.user.id);
   res.json(users.map(publicUser));
@@ -63,7 +73,7 @@ router.post('/presence', (req, res) => {
   const out = {};
   for (const id of userIds) {
     const u = store.getUserById(id);
-    if (!u) continue;
+    if (!u || u.deletedAt) continue; // удалённые не видны в presence
     out[id] = {
       status: hub.isOnline(id) ? 'online' : (u.status || 'offline'),
       lastSeenAt: u.lastSeenAt || null,
@@ -72,10 +82,28 @@ router.post('/presence', (req, res) => {
   res.json(out);
 });
 
+// ── Phase 2: приглашения (RoomInvite) ─────────────────────────────────
+
+router.get('/invites', (req, res) => {
+  res.json(store.listInvites(req.user.id));
+});
+
+router.post('/invites/:id/accept', (req, res, next) => {
+  try {
+    res.json(store.acceptInvite(req.user.id, req.params.id));
+  } catch (e) { next(e); }
+});
+
+router.post('/invites/:id/decline', (req, res, next) => {
+  try {
+    res.json(store.declineInvite(req.user.id, req.params.id));
+  } catch (e) { next(e); }
+});
+
 router.get('/:id', (req, res, next) => {
-  if (['profile', 'search', 'blocks', 'block', 'presence'].includes(req.params.id)) return next();
+  if (['profile', 'search', 'blocks', 'block', 'presence', 'invites'].includes(req.params.id)) return next();
   const u = store.getUserById(req.params.id);
-  if (!u) return next(new AppError(404, 'USER_NOT_FOUND', 'Not found'));
+  if (!u || u.deletedAt) return next(new AppError(404, 'USER_NOT_FOUND', 'Not found'));
   res.json(publicUser(u));
 });
 

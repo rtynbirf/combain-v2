@@ -17,6 +17,7 @@ model User {
   balance      Float     @default(0)
   status       String    @default("offline")
   lastSeenAt   DateTime?
+  deletedAt    DateTime? // Phase 2: мягкое удаление (GDPR-минимум); история сообщений сохраняет автора
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -35,6 +36,7 @@ model User {
   roomsCreated Room[]             @relation("RoomCreator")
 
   @@index([status])
+  @@index([deletedAt])
 }
 
 model Room {
@@ -43,6 +45,7 @@ model Room {
   name        String?
   description String?
   avatarUrl   String?
+  pairKey     String? // Phase 2: быстрый поиск direct-пары (отсортированные userId через ':')
   createdById String
   createdBy   User      @relation("RoomCreator", fields: [createdById], references: [id])
   deletedAt   DateTime?
@@ -58,6 +61,7 @@ model Room {
   @@index([type])
   @@index([updatedAt])
   @@index([deletedAt])
+  @@index([pairKey])
 }
 
 model RoomMember {
@@ -93,6 +97,7 @@ model Message {
   locationAddress String?
   contactData     String?
   fileId          String?
+  forwardFromMessageId String? // Phase 2: провенанс форварда — всегда первоисточник
   editedAt        DateTime?
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
@@ -233,6 +238,14 @@ model RoomInvite {
 
   @@unique([roomId, inviteeId])
   @@index([inviteeId, status])
+}
+
+// Phase 2: отозванные JWT (logout/GDPR). expiresAt — для сборки мусора:
+// истёкший отозванный токен и так невалиден, строку можно удалять
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model AppSetting {

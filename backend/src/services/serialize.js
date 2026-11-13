@@ -29,6 +29,7 @@ function serializeMessage(m, reactions) {
     text: m.deletedAt ? null : (m.text ?? null),
     clientMessageId: m.clientMessageId || null,
     replyToId: m.replyToId || null,
+    forwardFromMessageId: m.forwardFromMessageId || null,
     fileUrl: m.fileUrl || null,
     fileName: m.fileName || null,
     fileSize: m.fileSize ?? null,

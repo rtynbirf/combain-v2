@@ -62,14 +62,7 @@ router.delete('/:id', (req, res, next) => {
 router.post('/forward', (req, res, next) => {
   try {
     const { messageId, targetRoomId, clientMessageId } = req.body || {};
-    const src = store.db.prepare('SELECT * FROM Message WHERE id=?').get(messageId);
-    if (!src) throw new AppError(404, 'MESSAGE_NOT_FOUND', 'Not found');
-    store.requireMember(src.roomId, req.user.id);
-    store.requireMember(targetRoomId, req.user.id);
-    const msg = store.createMessage(req.user.id, {
-      roomId: targetRoomId, type: src.type, text: src.text, clientMessageId,
-      fileUrl: src.fileUrl, fileName: src.fileName, fileSize: src.fileSize, fileMimeType: src.fileMimeType,
-    });
+    const msg = store.forwardMessage(req.user.id, { messageId, targetRoomId, clientMessageId });
     hub.broadcastToRoom(targetRoomId, { type: 'chat_message', requestId: clientMessageId, payload: msg });
     res.json(msg);
   } catch (e) { next(e); }
@@ -129,6 +122,13 @@ router.get('/pinned/:roomId', (req, res, next) => {
 router.post('/read', (req, res, next) => {
   try {
     const { messageIds, roomId } = req.body || {};
+    // Phase 2: верхний потолок пакета прочтения — иначе один запрос может завалить и БД, и broadcast
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'messageIds required');
+    }
+    if (messageIds.length > 500) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'messageIds limited to 500 per request');
+    }
     store.requireMember(roomId, req.user.id);
     let count = 0;
     for (const mid of messageIds || []) {
