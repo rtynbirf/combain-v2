@@ -129,7 +129,9 @@ npm test             # 63 теста, изолированная БД, случ�
 - **Phase 1 ✅** — unread-счётчики, Class A WS-доставка, 405 для direct-комнат, unique-индекс идемпотентности, security-хардненинг, CI/CD, Docker/Litestream/Caddy.
 - **Phase 1.5 ✅** — анти-брутфорс аутентификации, CSWSH + WS-анти-флуд, winston-логи с ротацией, graceful shutdown, SHA-pinning CI, keep-alive за прокси.
 - **Phase 2 ✅** — `User.deletedAt` (soft-delete/GDPR, `DELETE /users/me`), `Room.pairKey` (быстрый поиск direct-пар, O(1) по индексу), `RoomInvite` (`/rooms/:id/invites` + `/users/invites[/:id/accept|decline]` + WS-пуш `room_invited`), `jti` + revocation для JWT (logout реально отзывает токен; WS не пускает отозванные), усиление валидации username/password (3–24 `[a-zA-Z0-9_]`; 8–128, буква+цифра), лимит 500 на `messageIds` (REST+WS), `forwardFromMessageId` (провенанс всегда на первоисточник). 102/102 smoke.
-- **Phase 3** — CSP для фронтенда, метрики Prometheus, E2E-шифрование.
+- **Phase 3a ✅** — CSP, автогенерируемая из фактического контента фронтенда (`script-src 'self'`, хэши inline-стилей и статических обработчиков через `unsafe-hashes`; динамические обработчики → делегирование data-атрибутов). 118/118 smoke.
+- **Phase 3b ✅** — метрики Prometheus: `/metrics` (HTTP счётчик + гистограмма длительности по шаблонам роутов, WS-соединения/фреймы, бизнес-счётчик сообщений, DB-гейджи).
+- **Phase 3c** — E2E-шифрование — отдельный аддендум (как Calls в ТЗ).
 
 Спецификация: [`docs/BACKEND_SPEC.md`](docs/BACKEND_SPEC.md) ·
 Политика безопасности: [`SECURITY.md`](SECURITY.md)

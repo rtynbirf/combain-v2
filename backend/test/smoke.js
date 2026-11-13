@@ -496,6 +496,44 @@ async function main() {
     eq(badWs, 4401, 'ws: bad token closed 4401');
   }
 
+  // ── Phase 3a: CSP, автогенерируемая из фактического контента фронтенда ──
+  {
+    const page = await fetch(BASE + '/');
+    const csp = page.headers.get('content-security-policy') || '';
+    ok(!!csp, 'phase3a: CSP header present on /');
+    ok(csp.includes("script-src 'self'") && !/script-src[^;]*unsafe-inline/.test(csp), 'phase3a: script-src self, без unsafe-inline');
+    // hash тела статического обработчика: сервер разрешает ровно те байты, что раздаёт
+    const attrBody = "swTab('login')";
+    const attrHash = 'sha256-' + crypto.createHash('sha256').update(attrBody, 'utf8').digest('base64');
+    ok(csp.includes("script-src-attr 'unsafe-hashes'") && csp.includes(attrHash), 'phase3a: hash статического обработчика в script-src-attr');
+    // hash inline <style>-блока из того же HTML, что вернул сервер
+    const html = await page.text();
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    const styleHash = 'sha256-' + crypto.createHash('sha256').update(styleMatch ? styleMatch[1] : '', 'utf8').digest('base64');
+    ok(csp.includes(styleHash), 'phase3a: hash inline style в style-src');
+    ok(csp.includes("default-src 'self'") && csp.includes("frame-ancestors 'none'") && csp.includes("object-src 'none'"), 'phase3a: базовые директивы');
+    ok(!csp.includes('style-src-attr') || csp.includes("style-src-attr 'none'"), 'phase3a: style-атрибуты закрыты');
+    // SPA fallback несёт ту же CSP
+    const spa = await fetch(BASE + '/nonexistent-spa-route');
+    ok(!!spa.headers.get('content-security-policy'), 'phase3a: CSP on SPA fallback');
+  }
+
+  // ── Phase 3b: метрики Prometheus (/metrics) ──────────────
+  {
+    const mres = await fetch(BASE + '/metrics');
+    eq(mres.status, 200, 'phase3b: /metrics 200');
+    ok((mres.headers.get('content-type') || '').includes('text/plain'), 'phase3b: content-type text/plain');
+    const mtext = await mres.text();
+    ok(mtext.includes('combain_http_requests_total'), 'phase3b: http_requests_total');
+    ok(mtext.includes('combain_http_request_duration_seconds'), 'phase3b: http duration histogram');
+    ok(mtext.includes('combain_ws_connections'), 'phase3b: ws_connections gauge');
+    ok(mtext.includes('combain_ws_messages_total'), 'phase3b: ws_messages_total');
+    ok(mtext.includes('combain_messages_created_total'), 'phase3b: messages_created_total');
+    ok(mtext.includes('combain_db_users_active'), 'phase3b: db gauges');
+    // счётчики реально видят трафик набора: серия со status=200 существует
+    ok(mtext.includes('status="200"'), 'phase3b: серия http_requests со status=200');
+  }
+
   // ── Upload / static / SPA / security ─────────────────────
   {
     const fd = new FormData();

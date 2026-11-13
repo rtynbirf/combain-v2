@@ -166,6 +166,8 @@ function createMessage(authorId, data) {
     ).get(data.roomId, data.clientMessageId);
     if (existing) return messageWithAuthor(existing);
   }
+  // Phase 3b: бизнес-счётчик созданных сообщений (REST + WS, идемпотентные повторы не считаются)
+  try { require('./metrics').incMessage(); } catch {}
   const id = cuid();
   const ts = now();
   db.prepare(`

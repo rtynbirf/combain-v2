@@ -13,7 +13,7 @@
 | Q1 | Auth | **Access-only JWT**, TTL 7 days. Нет refresh-токена. Протух → re-login / `clearAuth()`. |
 | Q2 | Files | **Локальный диск** `uploads/`, абстракция `FileStorage` (позже S3/MinIO). |
 | Q3 | Soft delete | **Только** `Message.deletedAt` и `Room.deletedAt` (+ `RoomMember.leftAt` как soft-leave). Остальное — hard delete. |
-| Q4 | Scope | **Phase 1 + Phase 2** в этом ТЗ. **Calls (signaling)** — Phase 3 (отдельный addendum). |
+| Q4 | Scope | **Phase 1 + Phase 2** в этом ТЗ. **Calls (signaling)** — Phase 3c (отдельный addendum). Исполнено вне этого ТЗ: **Phase 3a** — CSP, автогенерируемая из контента фронтенда (`backend/src/services/csp.js`), **Phase 3b** — Prometheus `/metrics` (`backend/src/services/metrics.js`). |
 
 ### Phase map
 

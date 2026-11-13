@@ -26,15 +26,45 @@ const roomsRoutes = require('./routes/rooms');
 const messagesRoutes = require('./routes/messages');
 const usersRoutes = require('./routes/users');
 const groupsRoutes = require('./routes/groups');
+const metrics = require('./services/metrics');
+const { getPolicy } = require('./services/csp');
 
 const app = express();
 // За обратным прокси (Caddy/Nginx) включать TRUST_PROXY=true, иначе rate-limit
 // видит один IP прокси для всех клиентов
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
-// Базовые security-заголовки. CSP выключен: фронтенд заморожен и использует
-// inline-стили; тонкая настройка CSP — Phase 3
+// Базовые security-заголовки (CSP генерируем сами ниже — из фактического контента фронтенда)
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors());
+
+// Phase 3a: CSP, автогенерируемая из public/index.html (хэши inline-стилей и
+// статических on*-обработчиков; script-src 'self'; без unsafe-inline в script-контексте).
+app.use((req, res, next) => {
+  const policy = getPolicy(config.publicDir);
+  if (policy) res.setHeader('Content-Security-Policy', policy);
+  next();
+});
+
+// Phase 3b: HTTP-метрики. route-лейбл — шаблон роута (без cardinality-взрыва)
+app.use((req, res, next) => {
+  const end = process.hrtime.bigint();
+  res.on('finish', () => {
+    const route = metricsRoute(req);
+    metrics.incHttp(req.method, route, res.statusCode);
+    metrics.observeHttp(req.method, route, Number(process.hrtime.bigint() - end) / 1e9);
+  });
+  next();
+});
+
+function metricsRoute(req) {
+  const p = req.path || req.originalUrl || '';
+  if (req.baseUrl && req.route) return req.baseUrl + req.route.path;
+  if (req.baseUrl) return req.baseUrl;
+  if (p === '/' || p === '/metrics' || p === '/api/health' || p === '/api/ready') return p;
+  if (p.startsWith('/uploads')) return '/uploads';
+  if (p.startsWith('/api')) return p;
+  return 'static';
+}
 app.use(express.json({ limit: '2mb' }));
 
 // Глобальный rate-limit (draft-7 заголовки RateLimit-*). Health-зонды не считаем
@@ -76,6 +106,19 @@ app.get('/api/ready', (req, res) => {
     res.json({ ok: true, db: 'up' });
   } catch (e) {
     res.status(503).json({ ok: false, db: 'down' });
+  }
+});
+
+// Phase 3b: метрики для Prometheus (скрейп на /metrics; без секретов — только счётчики)
+app.get('/metrics', async (req, res) => {
+  try {
+    metrics.setWsConnections(wss.clients.size);
+    metrics.setDbGauges();
+    res.set('Content-Type', metrics.register.contentType);
+    res.end(await metrics.render());
+  } catch (e) {
+    logger.error('metrics_error', { err: e.message });
+    res.status(500).end();
   }
 });
 
@@ -154,6 +197,7 @@ wss.on('connection', (ws, req) => {
         ws.close(4408, 'Rate limited');
         return;
       }
+      metrics.incWsMessage();
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
       handle(ws, userId, msg);

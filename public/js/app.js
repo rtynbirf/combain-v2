@@ -176,6 +176,19 @@ async function loadPresence() {
 // ────────────────────────────────────────
 
 function bindUI() {
+  bindStaticUI();
+  setupDelegatedActions();
+  // Escape closes everything
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      hideMsgCtx();
+      hideImageModal();
+      if (Store.modalOpen) closeModal();
+    }
+  });
+}
+
+function bindStaticUI() {
   const loginForm = document.getElementById('fL');
   const regForm = document.getElementById('fR');
   if (loginForm) loginForm.addEventListener('submit', doLogin);
@@ -195,15 +208,6 @@ function bindUI() {
   if (searchInput) {
     searchInput.addEventListener('input', e => { Store.searchQuery = e.target.value; renderRooms(); });
   }
-
-  // Escape closes everything
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      hideMsgCtx();
-      hideImageModal();
-      if (Store.modalOpen) closeModal();
-    }
-  });
 }
 
 function sendMessageFromInput() {
@@ -232,7 +236,7 @@ async function searchUsersModal() {
     const users = await apiSearchUsers(q);
     if (!el) return;
     el.innerHTML = users.map(u =>
-      `<div class="nr-user" data-uid="${escHtml(u.id)}" onclick="toggleNrUser('${jsAttr(u.id)}', this)">
+      `<div class="nr-user" data-uid="${escHtml(u.id)}">
         ${escHtml(u.username)} ${nrSelected.has(u.id) ? '✓' : ''}
       </div>`
     ).join('');

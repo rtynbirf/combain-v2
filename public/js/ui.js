@@ -59,9 +59,9 @@ function renderRooms() {
     const unread = Number(Store.unreadCounts[room.id] || 0);
     const online = isRoomOnline(room);
 
-    return `<div class="ri ${active ? 'on' : ''}" onclick="openRoom('${jsAttr(room.id)}')">
+    return `<div class="ri ${active ? 'on' : ''}" data-room-id="${htmlAttr(room.id)}">
       <div class="ra">${escHtml(initial)}${online ? '<span class="pdot"></span>' : ''}</div>
-      <div style="flex:1;min-width:0">
+      <div class="ri-body">
         <div class="rn">${escHtml(name)}</div>
         <div class="rp" id="rp_${cssId(room.id)}"></div>
       </div>
@@ -100,7 +100,7 @@ function renderChat(keepScroll) {
 
   let html = '';
   if (messages._nextCursor) {
-    html += '<div class="load-more" onclick="loadMoreMessages()">\u2191 Load more</div>';
+    html += '<div class="load-more" data-action="load-more">↑ Load more</div>';
   }
   html += messages.map(m => renderMessage(m)).join('');
   container.innerHTML = html;
@@ -135,7 +135,7 @@ function renderMessage(m) {
   if (m.replyToId) {
     const reply = findMessage(m.replyToId);
     const replyText = reply ? (reply.text || reply.fileName || 'Attachment') : 'Original message';
-    content += `<div class="mrep" onclick="scrollToMessage('${jsAttr(m.replyToId)}')">${escHtml(replyText)}</div>`;
+    content += `<div class="mrep" data-scroll-to="${htmlAttr(m.replyToId)}">${escHtml(replyText)}</div>`;
   }
 
   // Content by type
@@ -146,7 +146,7 @@ function renderMessage(m) {
     case 'image': {
       const imgUrl = safeUrl(m.fileUrl);
       if (imgUrl) {
-        content += `<img src="${htmlAttr(imgUrl)}" alt="${htmlAttr(m.fileName || 'Image')}" style="max-width:300px;max-height:300px;border-radius:8px;cursor:pointer" onclick="showImageModal('${jsAttr(imgUrl)}')">`;
+        content += `<img src="${htmlAttr(imgUrl)}" alt="${htmlAttr(m.fileName || 'Image')}" class="m-img" data-img-url="${htmlAttr(imgUrl)}">`;
       } else {
         content += `<div class="mt">[blocked image url]</div>`;
       }
@@ -156,7 +156,7 @@ function renderMessage(m) {
     case 'video': {
       const videoUrl = safeUrl(m.fileUrl);
       if (videoUrl) {
-        content += `<video src="${htmlAttr(videoUrl)}" controls preload="metadata" style="max-width:320px;border-radius:8px"></video>`;
+        content += `<video src="${htmlAttr(videoUrl)}" controls preload="metadata" class="m-video"></video>`;
       } else {
         content += `<div class="mt">[blocked video url]</div>`;
       }
@@ -166,7 +166,7 @@ function renderMessage(m) {
     case 'voice': case 'audio': {
       const audioUrl = safeUrl(m.fileUrl);
       if (audioUrl) {
-        content += `<audio src="${htmlAttr(audioUrl)}" controls preload="metadata" style="max-width:260px"></audio>`;
+        content += `<audio src="${htmlAttr(audioUrl)}" controls preload="metadata" class="m-audio"></audio>`;
       } else {
         content += `<div class="mt">[blocked audio url]</div>`;
       }
@@ -176,7 +176,7 @@ function renderMessage(m) {
     case 'file': {
       const fileUrl = safeUrl(m.fileUrl);
       if (fileUrl) {
-        content += `<div class="mf" onclick="window.open('${jsAttr(fileUrl)}','_blank','noopener')">
+        content += `<div class="mf" data-file-url="${htmlAttr(fileUrl)}">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
         <div><div class="mf-name">${escHtml(m.fileName || 'File')}</div><div class="mf-size">${formatSize(m.fileSize)}</div></div>
       </div>`;
@@ -197,8 +197,8 @@ function renderMessage(m) {
   }
 
   const edited = m.editedAt ? '<span class="m-ed">(edited)</span>' : '';
-  const pending = m._pending ? '<span style="color:var(--t3)">\u23f3</span>' : '';
-  const failed = m._failed ? '<span style="color:#e55">\u274c</span>' : '';
+  const pending = m._pending ? '<span class="m-wait">⏳</span>' : '';
+  const failed = m._failed ? '<span class="m-fail">❌</span>' : '';
 
   const authorLine = !mine && isGroupChat()
     ? `<div class="ma">${escHtml(m.authorUsername || 'Unknown')}</div>` : '';
@@ -210,12 +210,12 @@ function renderMessage(m) {
     if (entries.length) {
       reactionsHtml = '<div class="mreacts">' + entries.map(([emoji, users]) => {
         const count = Array.isArray(users) ? users.length : Number(users) || 0;
-        return `<span class="mreact" onclick="toggleReaction('${jsAttr(m.id)}','${jsAttr(emoji)}')">${escHtml(emoji)} ${count}</span>`;
+        return `<span class="mreact" data-react-id="${htmlAttr(m.id)}" data-react-emoji="${htmlAttr(emoji)}">${escHtml(emoji)} ${count}</span>`;
       }).join('') + '</div>';
     }
   }
 
-  return `<div class="m ${cls}" id="msg_${cssId(m.id)}" oncontextmenu="showMsgCtx(event,'${jsAttr(m.id)}')">
+  return `<div class="m ${cls}" id="msg_${cssId(m.id)}" data-msg-id="${htmlAttr(m.id)}">
     ${authorLine}${content}
     <div class="mtime">${escHtml(time)}${edited}${pending}${failed}</div>
     ${reactionsHtml}
@@ -628,4 +628,38 @@ function showChatView() {
   document.getElementById('cv')?.classList.remove('hidden');
   const sb = document.getElementById('sb');
   if (sb && window.innerWidth < 768) sb.classList.add('mh');
+}
+
+
+// ────────────────────────────────────────
+// Phase 3a (CSP): делегирование действий.
+// Динамический HTML больше не несёт inline-обработчиков (onclick=...) —
+// действия читаются из data-атрибутов. CSP автогенерируется на сервере
+// из фактических байтов фронтенда и пускает только статические хэши.
+// ────────────────────────────────────────
+
+function setupDelegatedActions() {
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!t || typeof t.closest !== 'function') return;
+    const roomEl = t.closest('[data-room-id]');
+    if (roomEl) { openRoom(roomEl.dataset.roomId); return; }
+    const actEl = t.closest('[data-action="load-more"]');
+    if (actEl) { loadMoreMessages(); return; }
+    const scrollEl = t.closest('[data-scroll-to]');
+    if (scrollEl) { scrollToMessage(scrollEl.dataset.scrollTo); return; }
+    const imgEl = t.closest('[data-img-url]');
+    if (imgEl) { showImageModal(imgEl.dataset.imgUrl); return; }
+    const fileEl = t.closest('[data-file-url]');
+    if (fileEl) { window.open(fileEl.dataset.fileUrl, '_blank', 'noopener'); return; }
+    const reactEl = t.closest('[data-react-id]');
+    if (reactEl) { toggleReaction(reactEl.dataset.reactId, reactEl.dataset.reactEmoji); return; }
+    const nrEl = t.closest('.nr-user');
+    if (nrEl && nrEl.dataset.uid) { toggleNrUser(nrEl.dataset.uid, nrEl); return; }
+  });
+  document.addEventListener('contextmenu', (e) => {
+    if (!e.target || typeof e.target.closest !== 'function') return;
+    const msgEl = e.target.closest('.m[data-msg-id]');
+    if (msgEl) showMsgCtx(e, msgEl.dataset.msgId);
+  });
 }

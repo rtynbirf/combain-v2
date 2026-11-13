@@ -90,8 +90,18 @@
   .modal-content input { width: 100%; padding: 10px; margin-bottom: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--t1); }
   .modal-content button { padding: 8px 14px; margin-right: 8px; margin-top: 8px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 14px; }
   .modal-content button.sec { background: var(--bg3); color: var(--t1); }
+  /* === NEW ROOM MODAL === */
+  .nr-results-list { max-height: 200px; overflow-y: auto; margin-bottom: 8px; }
   .nr-user { padding: 8px 12px; cursor: pointer; border-radius: 6px; }
   .nr-user:hover { background: var(--bg3); }
+
+  /* === MESSAGE MEDIA (Phase 3a: без inline style-атрибутов — классы) === */
+  .ri-body { flex: 1; min-width: 0; }
+  .m-img { max-width: 300px; max-height: 300px; border-radius: 8px; cursor: pointer; }
+  .m-video { max-width: 320px; border-radius: 8px; }
+  .m-audio { max-width: 260px; }
+  .m-wait { color: var(--t3); }
+  .m-fail { color: #e55; }
 
   /* === CONTEXT MENU === */
   .ctx { display: none; position: fixed; background: var(--bg3); border-radius: 8px; z-index: 1500; padding: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
@@ -210,7 +220,7 @@
   <div class="modal-content">
     <h3>New Chat</h3>
     <input type="text" id="nrSearch" placeholder="Search users..." oninput="searchUsersModal()">
-    <div id="nrResults" style="max-height:200px;overflow-y:auto;margin-bottom:8px"></div>
+    <div id="nrResults" class="nr-results-list"></div>
     <input type="text" id="nrGroupName" placeholder="Group name (optional - for groups)">
     <button onclick="createDirectFromModal()">Direct</button>
     <button onclick="createGroupFromModal()">Group</button>
@@ -235,7 +245,7 @@
 <div id="callUI">
   <div class="call-box">
     <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" autoplay muted playsinline style="display:none"></video>
+    <video id="localVideo" autoplay muted playsinline class="hidden"></video>
     <button onclick="doHangup()">Hang up</button>
   </div>
 </div>
