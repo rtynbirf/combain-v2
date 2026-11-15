@@ -29,6 +29,9 @@ on:
       - "Dependabot Updates"
       - "Publish Docker image (GHCR)"
       - "Scorecard supply-chain security"
+      - "OSV-Scanner (зависимости против базы OSV)"
+      - "РЕВО ОБХОД"
+      - "Workflow security lint (zizmor)"
     types: [completed]
 permissions:
   actions: write
