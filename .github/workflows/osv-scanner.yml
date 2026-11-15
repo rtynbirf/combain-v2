@@ -18,5 +18,6 @@ jobs:
       fail-on-vuln: false
       upload-sarif: true
     permissions:
+      actions: read       # требуется reusable workflow (download-artifact)
       contents: read
       security-events: write
