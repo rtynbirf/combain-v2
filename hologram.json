@@ -2,7 +2,7 @@
  "hologram": 1,
  "root": "c223bd4a2f6a56783c1fbdb1b1f671fa61c3150ecf320c82796ea5763043a696",
  "n": 73,
- "storage": 68,
+ "storage": 36,
  "r": 3,
  "self": {
   "name": "combain-v2",
@@ -306,6 +306,18 @@
  ],
  "flesh": [
   {
+   "name": ".github",
+   "desc": ".github — дефолтные community health files",
+   "lang": "Python",
+   "cluster": ""
+  },
+  {
+   "name": "code",
+   "desc": "Код дома: скрипты и снипеты — место по канону §4",
+   "lang": "Shell",
+   "cluster": ""
+  },
+  {
    "name": "lean-canon",
    "desc": "КНИГА LEAN-КАНОНА",
    "lang": "Lean",
@@ -328,6 +340,12 @@
    "desc": "UniversalAgent (TsUA) - single-brain holistic agent: one LLM core, closed perception-action loop, four-layer memory, sandboxed tools. Pure stdlib.",
    "lang": "Python",
    "cluster": "AGENTS"
+  },
+  {
+   "name": "windows-chronicle",
+   "desc": "Полная хроника Microsoft Windows 1985-2026: все версии, боли пользователей, продвижение, рейтинг двух полюсов",
+   "lang": "Python",
+   "cluster": ""
   }
  ]
 }
