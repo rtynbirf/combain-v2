@@ -33,4 +33,6 @@ jobs:
           # админ-роли в rulesets стоит bypass=always, enforce_admins=false на классической защите
           git config --unset-all http.https://github.com/.extraheader || true
           git config --worktree --unset-all http.https://github.com/.extraheader 2>/dev/null || true
-          git push "https://x-access-token:${SWARM_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${GITHUB_REF_NAME}
+          # волна 18 (зуб, по примеру account-facade): гонка за push — ребейз на свежий HEAD перед толчком
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          # толчок рукой роя
