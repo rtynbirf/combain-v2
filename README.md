@@ -1,14 +1,14 @@
 # COMBAIN v2 — self-hosted messenger
 
 <div align="center">
-  <img src="banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
+  <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
 </div>
 
 <!--ФОРЖ:МУЗА:НАЧАЛО-->
 <div align="center">
-  <img src="repo-muse.svg" width="100%" alt="Муза combain-v2: мастерская КОММУТАТОР, кузня ПОЛИМАТ, раунд 12 · REVE=РЕВО" />
+  <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/repo-muse.svg" width="100%" alt="Муза combain-v2: мастерская КОММУТАТОР, кузня ПОЛИМАТ, раунд 12 · REVE=РЕВО" />
   <br/>
-  <img src="forge-divider.svg" width="62%" alt="делитель мастерской КОММУТАТОР" />
+  <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/forge-divider.svg" width="62%" alt="делитель мастерской КОММУТАТОР" />
 </div>
 <!--ФОРЖ:МУЗА:КОНЕЦ-->
 
