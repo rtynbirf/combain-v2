@@ -1,6 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: npm
+  - package-ecosystem:
+    open-pull-requests-limit: 0  # версионный шум Dependabot выключен (чистка аккаунта 2026-11-18) npm
     directory: /backend
     schedule:
       interval: weekly
@@ -9,12 +10,14 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
 
-  - package-ecosystem: docker
+  - package-ecosystem:
+    open-pull-requests-limit: 0  # версионный шум Dependabot выключен (чистка аккаунта 2026-11-18) docker
     directory: /
     schedule:
       interval: weekly
 
-  - package-ecosystem: github-actions
+  - package-ecosystem:
+    open-pull-requests-limit: 0  # версионный шум Dependabot выключен (чистка аккаунта 2026-11-18) github-actions
     directory: /
     schedule:
       interval: weekly
