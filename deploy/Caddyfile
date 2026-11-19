@@ -7,6 +7,12 @@
 	@health path /api/health /api/ready
 	log_skip @health
 
+	# Внутренние пути не для внешних глаз (Prometheus security model: метрики не
+	# публикуют; принцип CSP, применённый к сети — прокси пропускает ровно те
+	# пути, что нужны клиенту). Скрейп Prometheus — с внутренней сети/localhost.
+	@internal_only path /metrics
+	respond @internal_only 403
+
 	reverse_proxy app:3000 {
 		header_up X-Real-IP {remote_host}
 	}

@@ -34,6 +34,13 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m
+    # Мир 2024–2026: контейнеру — ровно то, что нужно (принцип CSP на уровне ресурсов)
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)throw 0}).catch(()=>process.exit(1))"]
       interval: 30s
@@ -53,6 +60,12 @@ services:
     volumes:
       - combain-data:/data
       - ./deploy/litestream.yml:/etc/litestream.yml:ro
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       app:
         condition: service_healthy
@@ -71,6 +84,19 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    mem_limit: 256m
+    cap_drop:
+      - ALL
+    cap_add:
+      # единственное право сверх нуля: Caddy связывает 80/443
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       app:
         condition: service_healthy
