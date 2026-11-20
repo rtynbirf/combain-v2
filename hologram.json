@@ -1,8 +1,8 @@
 {
  "hologram": 1,
- "root": "f9cae3a874a9064bc1ccba9db8e0255366799943b735f2a8be5b259b79316d23",
+ "root": "4bcb8a068871f9158f688c6941bf4b381477a19c0c45283c73811c92000edb94",
  "n": 79,
- "storage": 44,
+ "storage": 74,
  "r": 3,
  "self": {
   "name": "combain-v2",
@@ -109,7 +109,7 @@
   },
   {
    "name": "global-practice-atlas",
-   "hash": "a67f05603d13bf1c7da83d003c8bc9e48ea60dd0e166e1fd2eea58b60f9dd304"
+   "hash": "420b94983834f6bc6de962c180368b34a79340d2a0e638eeeddc040fd7717feb"
   },
   {
    "name": "global-video-platforms-registry",
@@ -330,18 +330,6 @@
  ],
  "flesh": [
   {
-   "name": ".github",
-   "desc": ".github — дефолтные community health files",
-   "lang": "Python",
-   "cluster": ""
-  },
-  {
-   "name": "code",
-   "desc": "Код дома: скрипты и снипеты — место по канону §4",
-   "lang": "Python",
-   "cluster": ""
-  },
-  {
    "name": "lean-canon",
    "desc": "КНИГА LEAN-КАНОНА",
    "lang": "Lean",
@@ -354,12 +342,6 @@
    "cluster": "VAULT"
   },
   {
-   "name": "relomat",
-   "desc": "РЕЛОМАТ — канон типизированных отношений как конечный детерминированный автомат: SAME, IS-A, PART-OF, TOOL-OF, METHOD-OF, RELATED, COMPLEMENTARY, MEMBER-OF, INSTANCE, FRAMEWORK · stdlib · unittest 11/",
-   "lang": "Python",
-   "cluster": ""
-  },
-  {
    "name": "uace-polymat",
    "desc": "UACE x PML — POLYMAT UNIFIED userscripts + Cookie Vault MV3 extension. 0 network. Machine-verified releases.",
    "lang": "JavaScript",
@@ -370,12 +352,6 @@
    "desc": "UniversalAgent (TsUA) - single-brain holistic agent: one LLM core, closed perception-action loop, four-layer memory, sandboxed tools. Pure stdlib.",
    "lang": "Python",
    "cluster": "AGENTS"
-  },
-  {
-   "name": "windows-chronicle",
-   "desc": "Полная хроника Microsoft Windows 1985-2026: все версии, боли пользователей, продвижение, рейтинг двух полюсов",
-   "lang": "Python",
-   "cluster": ""
   }
  ]
 }
