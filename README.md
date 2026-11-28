@@ -4,12 +4,6 @@
 
 </div>
 
-# COMBAIN v2 — self-hosted messenger
-
-<div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
-</div>
-
 <!--ФОРЖ:МУЗА:НАЧАЛО-->
 <div align="center">
   <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/repo-muse.svg" width="100%" alt="Муза combain-v2: мастерская КОММУТАТОР, кузня ПОЛИМАТ, раунд 12 · REVE=РЕВО" />
@@ -20,13 +14,33 @@
 
 <!--ФОРЖ:ПАСПОРТ:НАЧАЛО-->
 <div align="center">
-  <img src="revo-page.svg" width="100%" alt="РЕВО-паспорт страницы combain-v2 в каноне ORNAMENTAL MYTHO-REALISM: орнаментальная решётка, медальон-миф, строение файлов, лексикон — по фактическому контенту" />
+  <img src="revo-page.svg" width="100%" alt="РЕВО-паспорт страницы combain-v2 №14 в каноне ORNAMENTAL MYTHO-REALISM: орнаментальная решётка, медальон-миф, строение файлов, лексикон — по фактическому контенту" />
 </div>
 
 | ФАЙЛОВ | ПАПОК | КОММИТОВ | ОБНОВЛЕНО | РЕЛИЗОВ |
 |---:|---:|---:|---|---:|
-| 92 | 19 | 197 | 2026-11-28 | 1 |
+| 92 | 19 | 1 | 2026-11-28 | 1 |
 <!--ФОРЖ:ПАСПОРТ:КОНЕЦ-->
+
+# combain-v2
+
+<p align="center"><img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/.github/social-preview.png" alt="combain-v2" width="100%"></p>
+
+<div align="center">
+
+<a href="https://github.com/rtynbirf/combain-v2"><img src="banner.png" width="100%" alt="combain-v2 — штандарт мастерской в каноне ORNAMENTAL MYTHO-REALISM"></a>
+
+</div>
+
+# COMBAIN v2 — self-hosted messenger
+
+<div align="center">
+  <img src="https://cdn.jsdelivr.net/gh/rtynbirf/combain-v2@main/banner.png" width="100%" alt="Штандарт combain-v2: обсидиан и расплавленное золото, кузня rtynbirf" />
+</div>
+
+
+
+
 
 
 
